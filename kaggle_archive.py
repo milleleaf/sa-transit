@@ -39,7 +39,7 @@ def main():
                 print(f'::warning::{s} exists but does not list all {len(paths)} days: kept on the bucket, check by hand'); continue
             with tempfile.TemporaryDirectory() as root:
                 download_bucket_files(REPO, [(p, os.path.join(root, p)) for p in paths])
-                kaggle_mirror.mirror(s, f'AlreadyOpen: SA {TITLE[feed]} {month}', root, paths)
+                kaggle_mirror.mirror(s, f'Milleleaf: SA {TITLE[feed]} {month}', root, paths)
             for _ in range(30):                                        # Kaggle processes an upload before listing its files
                 if listed(s, paths): break
                 time.sleep(60)
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         assert past_months(p, datetime.datetime(2026, 10, 5)) == {('vehicles', '2025-12'): [p[3]], ('vehicles', '2026-09'): [p[1]],
                                                                   ('trip_updates', '2026-09'): [p[4]], ('alerts', '2026-09'): [p[5]]}
         assert slug('trip_updates', '2026-10') == 'helenkwok/sa-transit-trip-updates-2026-10'
-        assert all(6 <= len(f'AlreadyOpen: SA {t} 2026-10') <= 50 for t in TITLE.values())
+        assert all(6 <= len(f'Milleleaf: SA {t} 2026-10') <= 50 for t in TITLE.values())
         print('kaggle_archive: self-test ok')
     else:
         main()

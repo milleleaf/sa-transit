@@ -17,7 +17,7 @@ import duckdb
 import sources
 
 URL = 'https://gtfs.adelaidemetro.com.au/v1/static/latest/google_transit.zip'
-UA = {'User-Agent': 'AlreadyOpen sa-transit (https://github.com/milleleaf/sa-transit)'}
+UA = {'User-Agent': 'Milleleaf sa-transit (https://github.com/milleleaf/sa-transit)'}
 NOT_CSV = {'Release Notes.txt'}                                         # every other .txt in the zip is a GTFS table
 MINZOOM, MAXZOOM = 4, 14
 

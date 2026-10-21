@@ -15,7 +15,7 @@ tags:
 
 The Adelaide Metro General Transit Feed (buses, trains and trams in metropolitan Adelaide, plus the regional coach operators
 the same feed carries, such as Stateliner) as GeoParquet, JSON and vector tiles, rebuilt weekly by
-[AlreadyOpen/sa-transit](https://github.com/milleleaf/sa-transit), with a snapshot of the GTFS-realtime feeds (vehicle
+[milleleaf/sa-transit](https://github.com/milleleaf/sa-transit), with a snapshot of the GTFS-realtime feeds (vehicle
 positions, trip updates and service alerts) every 15 minutes. Every table, row and field of the source is kept.
 
 | File | Holds |

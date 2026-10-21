@@ -12,7 +12,7 @@ _idx = os.path.join(sources.OUT, 'index.json')
 TABLES = json.load(open(_idx))['tables'] if os.path.exists(_idx) else []
 BUCKET_FILES = ['index.json', 'transit.pmtiles', 'stops.json', 'routes.json', 'stops.parquet', 'route-shapes.parquet']   # the map reads these
 DATASET_FILES = BUCKET_FILES + ['release-notes.txt'] + [f'gtfs/{t}.parquet' for t in TABLES]
-KAGGLE = ('helenkwok/sa-transit', 'AlreadyOpen: South Australia transit')        # mirrored by kaggle_mirror.py (title 6-50 chars)
+KAGGLE = ('helenkwok/sa-transit', 'Milleleaf: South Australia transit')        # mirrored by kaggle_mirror.py (title 6-50 chars)
 
 def main():
     o = lambda f: os.path.join(sources.OUT, f); idx = json.load(open(o('index.json')))
