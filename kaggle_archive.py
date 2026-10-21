@@ -10,7 +10,7 @@ import datetime, json, os, re, subprocess, sys, tempfile, time
 from huggingface_hub import batch_bucket_files, download_bucket_files, list_bucket_tree
 import kaggle_mirror
 
-REPO = 'alreadyopen/sa-transit'
+REPO = 'milleleaf/sa-transit'
 DAY = re.compile(r'live/(vehicles|trip_updates|alerts)-(\d{4}-\d{2})-\d{2}\.parquet')
 TITLE = {'vehicles': 'vehicle positions', 'trip_updates': 'trip updates', 'alerts': 'service alerts'}
 slug = lambda feed, month: f"helenkwok/sa-transit-{feed.replace('_', '-')}-{month}"

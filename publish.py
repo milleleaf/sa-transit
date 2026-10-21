@@ -7,7 +7,7 @@ import json, os
 from huggingface_hub import CommitOperationAdd, HfApi, batch_bucket_files, create_bucket
 import manifest, sources
 
-REPO = 'alreadyopen/sa-transit'
+REPO = 'milleleaf/sa-transit'
 _idx = os.path.join(sources.OUT, 'index.json')
 TABLES = json.load(open(_idx))['tables'] if os.path.exists(_idx) else []
 BUCKET_FILES = ['index.json', 'transit.pmtiles', 'stops.json', 'routes.json', 'stops.parquet', 'route-shapes.parquet']   # the map reads these

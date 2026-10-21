@@ -19,8 +19,8 @@ from google.transit import gtfs_realtime_pb2
 from huggingface_hub import batch_bucket_files, create_bucket, download_bucket_files
 
 BASE = 'https://gtfs.adelaidemetro.com.au/v1/realtime/'
-UA = {'User-Agent': 'AlreadyOpen sa-transit (https://github.com/AlreadyOpen/sa-transit)'}
-REPO = 'alreadyopen/sa-transit'
+UA = {'User-Agent': 'AlreadyOpen sa-transit (https://github.com/milleleaf/sa-transit)'}
+REPO = 'milleleaf/sa-transit'
 EXT = 1999                                       # TfnswVehicleDescriptor on VehicleDescriptor (adelaidemetro_gtfsr.proto)
 SNAP = "(SELECT (json->'header'->>'timestamp')::BIGINT AS snapshot, unnest(json_extract(json, '$.entity[*]')) AS e FROM read_json_objects('{src}'))"
 VEHICLES = """

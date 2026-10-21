@@ -2,12 +2,12 @@
 
 South Australia public transport from the [Adelaide Metro GTFS feed (CC BY 4.0)](https://data.sa.gov.au/data/dataset/4e191c1e-b971-441f-83f7-45e266c41b99)
 (metro buses, trains, trams and the regional coaches in the same feed), as GeoParquet, JSON and vector tiles, published weekly
-to Hugging Face ([dataset](https://huggingface.co/datasets/alreadyopen/sa-transit),
-[bucket](https://huggingface.co/buckets/alreadyopen/sa-transit) read by browsers) and mirrored to
+to Hugging Face ([dataset](https://huggingface.co/datasets/milleleaf/sa-transit),
+[bucket](https://huggingface.co/buckets/milleleaf/sa-transit) read by browsers) and mirrored to
 [Kaggle](https://www.kaggle.com/datasets/helenkwok/sa-transit). The GTFS-realtime vehicle positions, trip updates and service alerts
 are snapshotted every 15 minutes to the bucket (`live/`), and each complete month is archived on Kaggle
 (`helenkwok/sa-transit-{vehicles,trip-updates,alerts}-YYYY-MM`). Built from
-[pipeline-template](https://github.com/AlreadyOpen/pipeline-template). Every table, row and field is kept; the files are
+[pipeline-template](https://github.com/milleleaf/pipeline-template). Every table, row and field is kept; the files are
 listed in `hf/README.md`.
 
     python3 bake.py            # data/out/: Parquet, JSON, PMTiles + index.json (needs tippecanoe 2.79)
