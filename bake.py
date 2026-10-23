@@ -10,7 +10,8 @@ regional coach operators in the same feed, e.g. Stateliner), as GeoParquet, JSON
   stops.json              GeoJSON of every stop with coordinates, every field (for the map)
   routes.json             every route, every field, with its shape_ids and trip count (for the map)
   transit.pmtiles         layers `routes` (route-shapes) and `stops`, zooms 4 to 14, every feature in every zoom
-index.json counts the rows of each table and the features of each tile layer at zoom 14.
+index.json counts the rows of each table, the features of each tile layer at zoom 14, and (<table>_valid) the rows of trips,
+stop_times, calendar and calendar_dates whose service still runs on or after the bake date.
 Usage: python3 bake.py"""
 import datetime, json, os, re, shutil, subprocess, urllib.request, zipfile
 import duckdb
@@ -52,7 +53,20 @@ def geojsonl(con, sql, out):
     return n
 
 
+def valid_counts(con, src, day):
+    """rows of the timetable tables still valid on day (YYYYMMDD): trips, stop_times and calendar of a service that runs on or after
+    day (calendar end_date >= day, or a calendar_dates addition, exception_type 1, on or after it), and calendar_dates dated on or
+    after day. src(t): the SQL relation of GTFS table t (a table, or remote parquet)"""
+    con.execute(f"""CREATE OR REPLACE TEMP TABLE valid_services AS SELECT service_id FROM {src('calendar')} WHERE end_date >= '{day}'
+                    UNION SELECT service_id FROM {src('calendar_dates')} WHERE exception_type = '1' AND date >= '{day}'""")
+    v = 'service_id IN (SELECT service_id FROM valid_services)'
+    q = lambda t, where: con.execute(f'SELECT count(*) FROM {src(t)} WHERE {where}').fetchone()[0]
+    return {'trips_valid': q('trips', v), 'calendar_valid': q('calendar', v), 'calendar_dates_valid': q('calendar_dates', f"date >= '{day}'"),
+            'stop_times_valid': q('stop_times', f"trip_id IN (SELECT trip_id FROM {src('trips')} WHERE {v})")}
+
+
 def main():
+    built = datetime.datetime.now().isoformat(timespec='seconds')
     for d in (sources.CACHE, sources.OUT): os.makedirs(d, exist_ok=True)
     z = zipfile.ZipFile(download())
     src = os.path.join(sources.DATA, 'gtfs'); shutil.rmtree(src, ignore_errors=True); z.extractall(src)
@@ -66,8 +80,9 @@ def main():
         con.execute(f"CREATE TABLE {t} AS SELECT * FROM read_csv('{os.path.join(src, name)}', all_varchar=true, header=true, nullstr='')")
         con.execute(f"COPY {t} TO '{o(f'gtfs/{t}.parquet')}' (FORMAT parquet, COMPRESSION zstd)")
         counts[t] = con.execute(f'SELECT count(*) FROM {t}').fetchone()[0]
-    for t in ['stops', 'routes', 'trips', 'shapes']:
+    for t in ['stops', 'routes', 'trips', 'shapes', 'stop_times', 'calendar', 'calendar_dates']:
         assert t in tables, f'{t}.txt missing from the feed'
+    counts.update(valid_counts(con, lambda t: t, built[:10].replace('-', '')))     # what the publish gate compares (publish.py)
     con.execute("""CREATE TABLE stops_g AS SELECT *, CASE WHEN stop_lat IS NOT NULL AND stop_lon IS NOT NULL
                    THEN ST_Point(stop_lon::DOUBLE, stop_lat::DOUBLE) END AS geometry FROM stops""")
     con.execute("""CREATE TABLE lines AS SELECT shape_id, count(*) AS points, max(shape_dist_traveled::DOUBLE) AS shape_dist_traveled,
@@ -106,7 +121,7 @@ def main():
     assert counts['routes_tiles_deepest_zoom'] == nr == counts['route_shapes'], f'routes layer: {counts["routes_tiles_deepest_zoom"]} of {nr} at z{MAXZOOM}'
     assert counts['stops_tiles_deepest_zoom'] == ns == counts['stops_located'], f'stops layer: {counts["stops_tiles_deepest_zoom"]} of {ns} at z{MAXZOOM}'
     feed = con.execute('SELECT * FROM feed_info').fetchone() if 'feed_info' in tables else None
-    idx = {'built': datetime.datetime.now().isoformat(timespec='seconds'), 'counts': counts, 'tables': tables,
+    idx = {'built': built, 'counts': counts, 'tables': tables,
            'feed_info': dict(zip([d[0] for d in con.description], feed)) if feed else None}
     json.dump(idx, open(o('index.json'), 'w'), indent=1)
     print(json.dumps(idx))

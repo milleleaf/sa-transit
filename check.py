@@ -1,6 +1,7 @@
 """Data-free checks for CI on every push (no downloads, no token): every script compiles, sources.json declares each source with
 its licence and owner, the dataset card carries a licence link and names every owner, every workflow parses as YAML with its
-triggers (an unquoted ': ' in a run line makes GitHub drop them silently), and the publish gate's self-test passes.
+triggers (an unquoted ': ' in a run line makes GitHub drop them silently), and the publish gate's self-tests pass
+(manifest.py, and publish.py's valid-service comparison).
 Usage: python3 check.py"""
 import glob, json, py_compile, re, subprocess, sys
 import yaml
@@ -18,4 +19,5 @@ for w in glob.glob('.github/workflows/*.yml'):
     y = yaml.safe_load(open(w))                                        # YAML reads the key `on` as True
     assert isinstance(y, dict) and (y.get('on') or y.get(True)) and y.get('jobs'), f'{w}: no triggers or jobs (invalid workflow)'
 subprocess.run([sys.executable, 'manifest.py'], check=True)
+subprocess.run([sys.executable, 'publish.py', 'test'], check=True)
 print(f'check: ok ({len(src)} sources)')
