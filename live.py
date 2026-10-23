@@ -7,8 +7,11 @@ Bucket, for each <name> (overwritten in place):
                                   extension: air_conditioned, wheelchair_accessible, on every VehicleDescriptor as
                                   tfnsw_vehicle_descriptor)
   live/<name>.pb                  the latest feed as received (protobuf)
-  live/<name>-YYYY-MM-DD.parquet  that UTC day's snapshots so far, appended each run: one row per entity per snapshot, the main
-                                  fields as columns and `entity` = the full entity as JSON (vehicles: GeoParquet)
+  live/<name>-YYYY-MM-DD.parquet  that UTC day's snapshots so far (the day of `ingested_at`), appended each run: one row per
+                                  entity per snapshot, the main fields as columns and `entity` = the full entity as JSON (vehicles:
+                                  GeoParquet). `snapshot` = the feed's header timestamp as received; `ingested_at` = when this
+                                  run fetched it (UTC). The alerts header runs ~10.5 h ahead (Adelaide local time sent as UTC):
+                                  use `ingested_at` for alerts. Rows before 2026-10-23 have no `ingested_at`.
 kaggle_archive.py moves each complete month to its own Kaggle dataset, and only then removes its days from the bucket.
 On any error a feed is skipped for this run (a warning, exit 0): no retry loop. Needs HF_TOKEN. Usage: python3 live.py"""
 import datetime, json, os, sys, tempfile, urllib.request
@@ -24,7 +27,7 @@ REPO = 'milleleaf/sa-transit'
 EXT = 1999                                       # TfnswVehicleDescriptor on VehicleDescriptor (adelaidemetro_gtfsr.proto)
 SNAP = "(SELECT (json->'header'->>'timestamp')::BIGINT AS snapshot, unnest(json_extract(json, '$.entity[*]')) AS e FROM read_json_objects('{src}'))"
 VEHICLES = """
-SELECT to_timestamp(snapshot) AS "snapshot", e->>'id' AS "entity_id",
+SELECT to_timestamp(snapshot) AS "snapshot", '{ing}'::TIMESTAMPTZ AS "ingested_at", e->>'id' AS "entity_id",
   e->'vehicle'->'trip'->>'trip_id' AS "trip_id", e->'vehicle'->'trip'->>'route_id' AS "route_id",
   (e->'vehicle'->'trip'->>'direction_id')::INTEGER AS "direction_id", e->'vehicle'->'trip'->>'start_date' AS "start_date",
   e->'vehicle'->'trip'->>'start_time' AS "start_time", e->'vehicle'->'trip'->>'schedule_relationship' AS "schedule_relationship",
@@ -42,7 +45,7 @@ SELECT to_timestamp(snapshot) AS "snapshot", e->>'id' AS "entity_id",
   ST_Point((e->'vehicle'->'position'->>'longitude')::DOUBLE, (e->'vehicle'->'position'->>'latitude')::DOUBLE) AS "geometry"
 FROM """ + SNAP
 TRIP_UPDATES = """
-SELECT to_timestamp(snapshot) AS "snapshot", e->>'id' AS "entity_id",
+SELECT to_timestamp(snapshot) AS "snapshot", '{ing}'::TIMESTAMPTZ AS "ingested_at", e->>'id' AS "entity_id",
   e->'trip_update'->'trip'->>'trip_id' AS "trip_id", e->'trip_update'->'trip'->>'route_id' AS "route_id",
   (e->'trip_update'->'trip'->>'direction_id')::INTEGER AS "direction_id", e->'trip_update'->'trip'->>'start_date' AS "start_date",
   e->'trip_update'->'trip'->>'start_time' AS "start_time",
@@ -52,7 +55,7 @@ SELECT to_timestamp(snapshot) AS "snapshot", e->>'id' AS "entity_id",
   json_array_length(e->'trip_update'->'stop_time_update') AS "stop_time_updates", e AS "entity"
 FROM """ + SNAP
 ALERTS = """
-SELECT to_timestamp(snapshot) AS "snapshot", e->>'id' AS "entity_id", e->'alert'->>'cause' AS "cause",
+SELECT to_timestamp(snapshot) AS "snapshot", '{ing}'::TIMESTAMPTZ AS "ingested_at", e->>'id' AS "entity_id", e->'alert'->>'cause' AS "cause",
   e->'alert'->>'effect' AS "effect", e->'alert'->>'severity_level' AS "severity_level",
   e->'alert'->'header_text'->'translation'->0->>'text' AS "header_text",
   e->'alert'->'description_text'->'translation'->0->>'text' AS "description_text",
@@ -109,18 +112,21 @@ def snapshot(name, w, con):
         assert d.get('header', {}).get('timestamp'), f'no header timestamp: {str(d)[:200]}'
     except Exception as e:                                             # 5xx, timeout, bad protobuf: wait for the next run
         print(f'::warning::Adelaide Metro {endpoint}: {e}; skipping it this run'); return [], None
-    day = datetime.datetime.fromtimestamp(int(d['header']['timestamp']), datetime.UTC).date()
+    # file by our own fetch time: the alerts header is Adelaide local time written as UTC seconds (measured +10.4 h on
+    # 2026-10-23; vehicles and trip updates are true UTC), so its `snapshot` is kept as received and `ingested_at` is the clock
+    ing = datetime.datetime.now(datetime.UTC).replace(microsecond=0); d['ingested_at'] = ing.isoformat()
+    day = ing.date()
     remote = f'live/{name}-{day}.parquet'
     snap, pb, old, out = (os.path.join(w, f'{name}{x}') for x in ('.json', '.pb', '-old.parquet', '-new.parquet'))
     json.dump(d, open(snap, 'w'), separators=(',', ':')); open(pb, 'wb').write(body)
     download_bucket_files(REPO, [(remote, old)], raise_on_missing_files=False)   # absent on the day's first run
-    new = rows_sql.format(src=snap)
+    new = rows_sql.format(src=snap, ing=ing.isoformat())
     q = f"SELECT * FROM read_parquet('{old}') UNION ALL BY NAME {new}" if os.path.exists(old) else new
     if d.get('entity'):
         con.execute(f"COPY ({q} ORDER BY snapshot, entity_id) TO '{out}' (FORMAT parquet, COMPRESSION zstd)")
     rows = con.execute(f"SELECT count(*), count(DISTINCT snapshot) FROM '{out}'").fetchone() if os.path.exists(out) else (0, 0)
     add = [(snap, f'live/{name}.json'), (pb, f'live/{name}.pb')] + ([(out, remote)] if os.path.exists(out) else [])
-    return add, {'feed': name, 'snapshot': d['header']['timestamp'], 'entities': len(d.get('entity', [])), 'file': remote,
+    return add, {'feed': name, 'snapshot': d['header']['timestamp'], 'ingested_at': d['ingested_at'], 'entities': len(d.get('entity', [])), 'file': remote,
                  'rows': rows[0], 'snapshots': rows[1]}
 
 

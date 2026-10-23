@@ -46,9 +46,11 @@ late or skip one, so the history has gaps). Three GTFS-realtime feeds, each as `
 | `live/<feed>.pb` | The same feed as received (protobuf) |
 | `live/<feed>-YYYY-MM-DD.parquet` | Every entity in every snapshot of that UTC day, with the main fields as columns and `entity`, the full entity as JSON |
 
-`snapshot` is the feed's own header timestamp, and the day is taken from it. On 2026-10-11 the service alerts feed's header
-timestamp was Adelaide local time written as if it were UTC (10.5 hours ahead during daylight saving), while the other two
-feeds were in true UTC; it is kept as published.
+`snapshot` is the feed's own header timestamp, kept as published. The service alerts feed's header is Adelaide local time
+written as if it were UTC (10.5 hours ahead during daylight saving; seen 2026-10-11 and measured again 2026-10-23), while the
+other two feeds are in true UTC. So since 2026-10-23 every row also has `ingested_at`, the UTC time this pipeline fetched the
+feed, and the day file is taken from `ingested_at`: **use `ingested_at` for alerts.** Earlier alert files were named by the
+shifted header, so an alert day file before 2026-10-23 can hold the evening of the day before.
 
 The bucket keeps the current month (plus the previous one until it is archived). **The full history is on Kaggle**, one
 dataset per feed and month, never changed once created: `helenkwok/sa-transit-vehicles-YYYY-MM`,
